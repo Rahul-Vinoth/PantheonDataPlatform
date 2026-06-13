@@ -1,0 +1,9 @@
+pylance>=0.20
+lancedb>=0.20
+pyarrow>=18
+numpy>=2
+h5py>=3.12
+av>=14
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pytest>=8
