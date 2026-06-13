@@ -17,6 +17,7 @@ materializes them as **Lance** datasets (one per table — the lakehouse). Two a
 |---|---|---|
 | `ego_raw` | raw egocentric video (mp4 / `.tar` shards) | the **label-less** minimal episode; messy data (corrupt files, dupes, archives) |
 | `egodex`  | richly annotated ego (mp4 + paired hdf5) | **pose streams**, **moving-camera calibration**, language captions, **partial degradation** |
+| `lerobot` | cross-embodiment robot teleop (LeRobot v3: parquet + packed mp4) | simultaneous **proprio + dense action** streams referencing parquet columns; **multi-camera rig**; episode-as-time-segment in a packed mp4 |
 
 New datasets are added as **self-registering adapters** — no changes to the core
 (Trossen-style registry pattern). Adapters extend the *ingester*, never the schema.

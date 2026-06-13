@@ -49,6 +49,10 @@ class EgoRawAdapter(SourceAdapter):
         root = Path(root)
         if any(root.glob("factory_*")):
             return True
+        # defer to a structured adapter if this is a known catalog layout
+        # (LeRobot v3 packs its videos as mp4s but is described by meta/info.json)
+        if (root / "meta" / "info.json").exists():
+            return False
         # raw video only: defer to a richer adapter if mp4s are paired with side-cars
         mp4s = list(root.rglob("*.mp4"))
         if mp4s and not any(m.with_suffix(".hdf5").exists() for m in mp4s):
