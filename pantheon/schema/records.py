@@ -290,6 +290,33 @@ class Embedding:
 
 
 @dataclass
+class ActionLatent:
+    """Derived-tier: IDM output. Keys off a source Embedding (not pixels), so a new IDM
+    re-labels the corpus as a cheap pass over stored embeddings."""
+    latent_id: str
+    episode_id: str
+    stream_id: str
+    source_embedding_id: str
+    encoder_version: str
+    idm_version: str
+    t_start_ns: int
+    t_end_ns: int
+    latent: list[float]
+    confidence: float
+    action_space: Optional[str] = None
+
+    def to_row(self) -> dict:
+        return {
+            "latent_id": self.latent_id, "episode_id": self.episode_id,
+            "stream_id": self.stream_id, "source_embedding_id": self.source_embedding_id,
+            "encoder_version": self.encoder_version, "idm_version": self.idm_version,
+            "t_start_ns": self.t_start_ns, "t_end_ns": self.t_end_ns,
+            "latent": [float(x) for x in self.latent],
+            "action_space": self.action_space, "confidence": float(self.confidence),
+        }
+
+
+@dataclass
 class Quarantine:
     quarantine_id: str
     source_name: str

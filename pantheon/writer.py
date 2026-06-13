@@ -48,6 +48,10 @@ class CanonicalWriter:
         """Derived-tier write path (the encoder fills this; ingest does not)."""
         self.add_row("embedding", e.to_row())
 
+    def add_action_latent(self, a) -> None:
+        """Derived-tier write path (the IDM fills this; keys off an embedding)."""
+        self.add_row("action_latent", a.to_row())
+
     # ------------------------------------------------------------------- flush
     def _path(self, table: str) -> str:
         return str(self.dir / f"{table}.lance")

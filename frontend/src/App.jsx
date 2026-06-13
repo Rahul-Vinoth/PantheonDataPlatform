@@ -86,7 +86,8 @@ function Sources({ onIngest, jobStatus }) {
       <div style={S.cardHead}>Data Sources</div>
       <div style={S.cardBody}>
         <p style={{ color: C.dim, fontSize: 12, margin: '0 0 14px' }}>
-          Folders in <code style={{ color: C.accentHo }}>realdata/</code>
+          Run the pipeline (<b>ingest → QC → encode → IDM</b>) on a folder in{' '}
+          <code style={{ color: C.accentHo }}>realdata/</code>
         </p>
         {sources.length === 0
           ? <p style={{ color: C.muted, fontSize: 13 }}>
@@ -109,7 +110,7 @@ function Sources({ onIngest, jobStatus }) {
                 disabled={busy}
                 onClick={() => onIngest(s.name)}
               >
-                {busy ? '…' : 'Ingest'}
+                {busy ? '…' : 'Run'}
               </button>
             </div>
           ))
@@ -120,7 +121,32 @@ function Sources({ onIngest, jobStatus }) {
 }
 
 // ── Ingest Log ────────────────────────────────────────────────────────────────
-function IngestLog({ jobStatus, triggerKey }) {
+function StageTracker({ stages, stage, jobStatus }) {
+  const activeIdx = stage ? stages.indexOf(stage) : (jobStatus === 'done' ? stages.length : -1)
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+      {stages.map((st, i) => {
+        const done    = i < activeIdx || jobStatus === 'done'
+        const current = i === activeIdx && jobStatus === 'running'
+        const failed  = i === activeIdx && jobStatus === 'error'
+        const color = failed ? C.err : current ? C.warn : done ? C.ok : C.muted
+        const bg    = failed ? '#fee2e2' : current ? '#fef3c7' : done ? '#dcfce7' : '#f1f5f9'
+        return (
+          <span key={st} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ ...S.pill, color, background: bg,
+                           display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {done ? '✓' : current ? '●' : '○'} {st}
+            </span>
+            {i < stages.length - 1 &&
+              <span style={{ color: C.muted, fontSize: 12 }}>→</span>}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+function IngestLog({ jobStatus, triggerKey, stage, stages }) {
   const [lines, setLines] = useState([])
   const termRef = useRef(null)
   const esRef   = useRef(null)
@@ -149,10 +175,11 @@ function IngestLog({ jobStatus, triggerKey }) {
     <div style={S.card}>
       <div style={{ ...S.cardHead, display: 'flex', alignItems: 'center',
                     justifyContent: 'space-between' }}>
-        <span>Ingest Log</span>
+        <span>Pipeline Log</span>
         <StatusPill status={jobStatus} />
       </div>
       <div style={S.cardBody}>
+        <StageTracker stages={stages} stage={stage} jobStatus={jobStatus} />
         <div style={S.terminal} ref={termRef}>
           {lines.length === 0
             ? <span style={{ color: C.muted }}>Waiting for ingest to start…</span>
@@ -274,9 +301,147 @@ function LakehouseView({ refreshKey }) {
   )
 }
 
+// ── Delivery / Export ───────────────────────────────────────────────────────
+function Toggle({ label, checked, onChange }) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13,
+                    cursor: 'pointer', marginBottom: 6 }}>
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+      {label}
+    </label>
+  )
+}
+
+function DeliveryPanel({ refreshKey }) {
+  const [opts, setOpts]       = useState(null)
+  const [sel, setSel]         = useState({})         // source_id -> bool
+  const [name, setName]       = useState('delivery_1')
+  const [withEmb, setWithEmb] = useState(true)
+  const [withAct, setWithAct] = useState(true)
+  const [okOnly, setOkOnly]   = useState(false)
+  const [media, setMedia]     = useState(true)
+  const [status, setStatus]   = useState('idle')
+  const [lines, setLines]     = useState([])
+  const [exports, setExports] = useState([])
+  const esRef = useRef(null)
+
+  const loadOpts    = () => get(`${API}/export/options`).then(setOpts)
+  const loadExports = () => get(`${API}/exports`).then(d => setExports(d.exports))
+  useEffect(() => { loadOpts(); loadExports() }, [refreshKey])
+
+  const chosenSources = () => Object.keys(sel).filter(s => sel[s])
+
+  const run = async () => {
+    setLines([]); setStatus('running')
+    const res = await post(`${API}/export`, {
+      name,
+      sources: chosenSources().length ? chosenSources() : null,
+      include_partial: !okOnly,
+      include_embeddings: withEmb,
+      include_action_latents: withAct,
+      copy_media: media,
+    })
+    if (res.status !== 'started') { alert(res.detail ?? 'failed'); setStatus('error'); return }
+    if (esRef.current) esRef.current.close()
+    const es = new EventSource(`${API}/export/stream`); esRef.current = es
+    es.onmessage = e => {
+      const l = JSON.parse(e.data)
+      if (l === '__done__') { es.close(); return }
+      setLines(p => [...p, l])
+    }
+    const poll = setInterval(async () => {
+      const s = await get(`${API}/export/status`)
+      setStatus(s.status)
+      if (s.status !== 'running') { clearInterval(poll); loadExports() }
+    }, 800)
+  }
+
+  return (
+    <div style={{ ...S.card, marginTop: 20 }}>
+      <div style={{ ...S.cardHead, display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between' }}>
+        <span>Delivery — Package for Training</span>
+        <StatusPill status={status} />
+      </div>
+      <div style={S.cardBody}>
+        <p style={{ color: C.dim, fontSize: 12, margin: '0 0 14px' }}>
+          Select what to package into a portable, Lance-decoupled bundle (Parquet + media
+          + manifest). Manual — not part of the pipeline.
+        </p>
+
+        {/* sources */}
+        <p style={{ fontSize: 12, fontWeight: 600, color: C.dim, margin: '0 0 6px',
+                    textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sources</p>
+        {opts?.sources?.length
+          ? opts.sources.map(s => (
+              <Toggle key={s.source_id}
+                      label={`${s.name} (${s.episodes} episodes)`}
+                      checked={!!sel[s.source_id]}
+                      onChange={v => setSel(p => ({ ...p, [s.source_id]: v }))} />
+            ))
+          : <p style={{ color: C.muted, fontSize: 13 }}>No episodes yet.</p>}
+        <p style={{ fontSize: 11, color: C.muted, margin: '2px 0 14px' }}>
+          (none selected = all sources)
+        </p>
+
+        {/* options */}
+        <p style={{ fontSize: 12, fontWeight: 600, color: C.dim, margin: '0 0 6px',
+                    textTransform: 'uppercase', letterSpacing: '0.05em' }}>Include</p>
+        <Toggle label="Embeddings" checked={withEmb} onChange={setWithEmb} />
+        <Toggle label="Action latents (IDM)" checked={withAct} onChange={setWithAct} />
+        <Toggle label="Copy media into bundle (self-contained)" checked={media} onChange={setMedia} />
+        <Toggle label="OK episodes only (exclude partial)" checked={okOnly} onChange={setOkOnly} />
+
+        {/* name + run */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
+          <input value={name} onChange={e => setName(e.target.value)}
+                 placeholder="bundle name"
+                 style={{ flex: 1, padding: '6px 10px', borderRadius: 6,
+                          border: `1px solid ${C.border}`, fontSize: 13,
+                          background: C.bg, color: C.text }} />
+          <button style={{ ...S.btn, opacity: status === 'running' ? 0.5 : 1,
+                           cursor: status === 'running' ? 'not-allowed' : 'pointer' }}
+                  disabled={status === 'running'} onClick={run}>
+            {status === 'running' ? 'Packaging…' : 'Package delivery'}
+          </button>
+        </div>
+
+        {/* log */}
+        {lines.length > 0 &&
+          <div style={{ ...S.terminal, marginTop: 12, maxHeight: 160 }}>
+            {lines.map((l, i) => <div key={i}>{l || ' '}</div>)}
+          </div>}
+
+        {/* existing bundles */}
+        {exports.length > 0 && <>
+          <p style={{ fontSize: 12, fontWeight: 600, color: C.dim, margin: '18px 0 6px',
+                      textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Delivery bundles
+          </p>
+          {exports.map(m => (
+            <div key={m.name} style={{ background: C.bg, border: `1px solid ${C.border}`,
+                                       borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>{m.name}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                {m.counts.episode} episodes · {m.counts.embedding} emb · {m.counts.action_latent} latents
+                · {m.counts.media_files} media · {m.format}
+              </div>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                enc: {m.encoder_versions.join(',') || '—'} · idm: {m.idm_versions.join(',') || '—'}
+              </div>
+            </div>
+          ))}
+        </>}
+      </div>
+    </div>
+  )
+}
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [jobStatus, setJobStatus]   = useState('idle')
+  const [stage, setStage]           = useState(null)
+  const [stages, setStages]         = useState(['ingest', 'qc', 'encode', 'idm'])
   const [triggerKey, setTriggerKey] = useState(null)
   const [lhRefresh, setLhRefresh]   = useState(0)
 
@@ -284,6 +449,8 @@ export default function App() {
     const t = setInterval(async () => {
       const s = await get(`${API}/ingest/status`)
       setJobStatus(s.status)
+      setStage(s.stage)
+      if (s.stages) setStages(s.stages)
       if (s.status === 'done' || s.status === 'error')
         setLhRefresh(n => n + 1)
     }, 1000)
@@ -313,8 +480,10 @@ export default function App() {
       <div style={S.grid}>
         <Sources onIngest={handleIngest} jobStatus={jobStatus} />
         <div>
-          <IngestLog jobStatus={jobStatus} triggerKey={triggerKey} />
+          <IngestLog jobStatus={jobStatus} triggerKey={triggerKey}
+                     stage={stage} stages={stages} />
           <LakehouseView refreshKey={lhRefresh} />
+          <DeliveryPanel refreshKey={lhRefresh} />
         </div>
       </div>
     </div>
