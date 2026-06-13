@@ -7,3 +7,7 @@ av>=14
 fastapi>=0.115
 uvicorn[standard]>=0.32
 pytest>=8
+# encoder (derived tier) — heavy ML stack, only needed for `python -m pantheon.encode`
+torch>=2.2
+open_clip_torch>=2.24
+pillow>=10

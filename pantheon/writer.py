@@ -44,6 +44,10 @@ class CanonicalWriter:
     def add_quarantine(self, q: Quarantine) -> None:
         self.add_row("quarantine", q.to_row())
 
+    def add_embedding(self, e) -> None:
+        """Derived-tier write path (the encoder fills this; ingest does not)."""
+        self.add_row("embedding", e.to_row())
+
     # ------------------------------------------------------------------- flush
     def _path(self, table: str) -> str:
         return str(self.dir / f"{table}.lance")

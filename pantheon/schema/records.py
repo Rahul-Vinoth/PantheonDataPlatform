@@ -269,6 +269,27 @@ class QualitySignal:
 
 
 @dataclass
+class Embedding:
+    """Derived-tier: encode-once representation of a video/image_seq window."""
+    embedding_id: str
+    episode_id: str
+    stream_id: str
+    t_start_ns: int
+    t_end_ns: int
+    encoder_version: str
+    vector: list[float]
+    meta: dict = field(default_factory=dict)
+
+    def to_row(self) -> dict:
+        return {
+            "embedding_id": self.embedding_id, "episode_id": self.episode_id,
+            "stream_id": self.stream_id, "t_start_ns": self.t_start_ns,
+            "t_end_ns": self.t_end_ns, "encoder_version": self.encoder_version,
+            "vector": [float(x) for x in self.vector], "meta_json": _json(self.meta),
+        }
+
+
+@dataclass
 class Quarantine:
     quarantine_id: str
     source_name: str

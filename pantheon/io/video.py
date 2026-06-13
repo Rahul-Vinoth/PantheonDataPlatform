@@ -65,3 +65,46 @@ def probe_video(path: Path, verify_frames: int = 3) -> VideoInfo:
         return VideoInfo(width, height, fps, duration_ns, n_frames, codec, truncated)
     finally:
         container.close()
+
+
+def decode_window(path: Path, base_offset_s: float, t0_s: float, t1_s: float,
+                  sample_fps: float = 2.0):
+    """Decode RGB frames in the window [base_offset+t0, base_offset+t1), sampled at
+    `sample_fps`. `base_offset_s` is the segment's offset inside a packed file (from the
+    stream's payload_locator, e.g. LeRobot's from_timestamp); 0 for standalone clips.
+
+    Returns a list of HxWx3 uint8 RGB ndarrays. Tolerant of truncation: stops at the
+    window end or whatever decodes."""
+    import numpy as np  # local import keeps probe path import-light
+
+    start = base_offset_s + t0_s
+    end = base_offset_s + t1_s
+    container = av.open(str(path))
+    frames: list = []
+    try:
+        vs = container.streams.video[0]
+        tb = vs.time_base
+        if tb:
+            try:
+                container.seek(int(start / tb), stream=vs, any_frame=False, backward=True)
+            except Exception:
+                pass  # un-seekable -> decode from head, filter by timestamp below
+        interval = 1.0 / sample_fps if sample_fps > 0 else 0.0
+        next_t = start
+        try:
+            for frame in container.decode(video=0):
+                if frame.pts is None or tb is None:
+                    continue
+                t = float(frame.pts * tb)
+                if t < start:
+                    continue
+                if t >= end:
+                    break
+                if t + 1e-6 >= next_t:
+                    frames.append(frame.to_ndarray(format="rgb24"))
+                    next_t += interval
+        except Exception:
+            pass  # truncated mid-window -> return what we got
+        return frames
+    finally:
+        container.close()
