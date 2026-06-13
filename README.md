@@ -7,6 +7,8 @@ datasets into one queryable, training-ready shape.
   (spec + rationale); [docs/part1_schema.md](docs/part1_schema.md) (full reasoning).
 - **Part 2 — ingestion & normalization (this code):**
   [docs/part2_ingestion.md](docs/part2_ingestion.md).
+- **Part 4 — scale, storage & training hand-off:**
+  [docs/part4_scale.md](docs/part4_scale.md).
 
 ## What's built
 
