@@ -5,3 +5,4 @@ importing it below.
 """
 from . import ego_raw  # noqa: F401
 from . import egodex   # noqa: F401
+from . import lerobot  # noqa: F401
