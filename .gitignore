@@ -45,8 +45,8 @@ venv.bak/
 htmlcov/
 
 # Data (large files)
-*.lance/
 datasets.html
+lakehouse_example/
 
 # Node (frontend)
 node_modules/
