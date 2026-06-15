@@ -1,0 +1,44 @@
+{
+  "name": "delivery_1",
+  "created_at": "2026-06-14T00:32:32.088529+00:00",
+  "lakehouse": "/Users/rahul/PycharmProjects/PantheonDataPlatform/lakehouse",
+  "format": "parquet",
+  "selection": {
+    "sources": [
+      "ego_raw_factory",
+      "lerobot_unitreeh1"
+    ],
+    "embodiment_kinds": null,
+    "include_partial": true,
+    "include_embeddings": true,
+    "include_action_latents": true,
+    "copy_media": false,
+    "encoder_version": null,
+    "idm_version": null
+  },
+  "counts": {
+    "episode": 14,
+    "stream": 32,
+    "clock": 14,
+    "annotation": 6,
+    "calibration": 6,
+    "quality_signal": 20,
+    "source": 3,
+    "embodiment": 3,
+    "embedding": 190,
+    "action_latent": 170,
+    "media_files": 0
+  },
+  "encoder_versions": [
+    "clip-vit-b32-openai"
+  ],
+  "idm_versions": [
+    "idm-delta-0.1"
+  ],
+  "ingest_run_ids": [
+    "2f5c6c93413e8c5a",
+    "61b4b917b92a292d",
+    "7f9f6b453ce2b2da",
+    "8836bfb4a4ad9b79"
+  ]
+}

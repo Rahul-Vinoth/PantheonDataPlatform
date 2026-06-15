@@ -46,8 +46,6 @@ htmlcov/
 
 # Data (large files)
 *.lance/
-realdata/
-exports/
 datasets.html
 
 # Node (frontend)

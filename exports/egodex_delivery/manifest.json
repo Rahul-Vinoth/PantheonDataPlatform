@@ -1,0 +1,41 @@
+{
+  "name": "egodex_delivery",
+  "created_at": "2026-06-13T23:08:21.353058+00:00",
+  "lakehouse": "lakehouse",
+  "format": "parquet",
+  "selection": {
+    "sources": [
+      "egodex"
+    ],
+    "embodiment_kinds": null,
+    "include_partial": true,
+    "include_embeddings": true,
+    "include_action_latents": true,
+    "copy_media": true,
+    "encoder_version": null,
+    "idm_version": null
+  },
+  "counts": {
+    "episode": 12,
+    "stream": 840,
+    "clock": 12,
+    "annotation": 24,
+    "calibration": 12,
+    "quality_signal": 0,
+    "source": 1,
+    "embodiment": 1,
+    "embedding": 83,
+    "action_latent": 71,
+    "media_files": 24
+  },
+  "encoder_versions": [
+    "clip-vit-b32-openai"
+  ],
+  "idm_versions": [
+    "idm-delta-0.1"
+  ],
+  "ingest_run_ids": [
+    "43672be1c15f0565",
+    "e92a2fc83688dd0c"
+  ]
+}
